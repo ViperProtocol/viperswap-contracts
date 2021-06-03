@@ -61,6 +61,11 @@ describe('GovernanceToken', () => {
     await expect(token.connect(bob).mint(bob.address, MANUAL_MINT_AMOUNT)).to.be.reverted
   })
 
+  it('should fail if you try to mint over token cap', async () => {
+    await expect(token.mint(alice.address, TOTAL_CAP.mul(2))).to.be.reverted
+    expect(await token.manualMinted()).to.eq(NO_MANUAL_MINTED)
+  })
+
   it('should be able to perform a manualMint', async () => {
     await expect(token.manualMint(alice.address, MANUAL_MINT_AMOUNT))
       .to.emit(token, 'Transfer')
@@ -69,9 +74,16 @@ describe('GovernanceToken', () => {
     expect(await token.balanceOf(alice.address)).to.eq(TOTAL_SUPPLY.add(MANUAL_MINT_AMOUNT))
   })
 
-  it('should fail if you try to manualMint with an invalid amount', async () => {
-    await expect(token.manualMint(alice.address, MANUAL_MINT_AMOUNT.mul(expandTo18Decimals(2)))).to.be.reverted
-    expect(await token.manualMinted()).to.eq(NO_MANUAL_MINTED)
+  it('should fail if you try to manualMint over manualMintLimit', async function () {
+    const mintCap = TOTAL_CAP.sub(TOTAL_SUPPLY)
+    if(mintCap.gt(MANUAL_MINT_LIMIT)) {
+      // try to mint to cap: greater than manualMintLimit
+      await expect(token.manualMint(alice.address, mintCap)).to.be.reverted
+      expect(await token.manualMinted()).to.eq(NO_MANUAL_MINTED)
+    } else {
+      // cannot test: no mint overhead
+      this.skip()
+    }
   })
 
   it('should fail if you try to manualMint using a non-authorized alice', async () => {
